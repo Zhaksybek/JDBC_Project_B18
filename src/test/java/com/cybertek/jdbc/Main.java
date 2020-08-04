@@ -6,9 +6,12 @@ public class Main {
     public static void main(String[] args) throws SQLException {
         //Replace the IP with your own IP address
         // fghfghfh
-        String connectionStr = "jdbc:oracle:thin:@52.71.242.164:1521:XE";
+        //String connectionStr = "jdbc:oracle:thin:@52.71.242.164:1521:XE";  // Akbars IP
+        String connectionStr = "jdbc:oracle:thin:@54.161.111.195:1521:XE";  // my IP
+
         String username = "hr";
         String password = "hr";
+
 
         // GETTING DATABASE CONNECTION TO THE SERVER
         Connection conn = DriverManager.getConnection(connectionStr,username,password);
