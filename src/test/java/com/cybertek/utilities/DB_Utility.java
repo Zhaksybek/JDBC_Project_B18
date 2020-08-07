@@ -16,9 +16,9 @@ public class DB_Utility {
      * */
     public static void createConnection() {
 
-        String connectionStr = "jdbc:oracle:thin:@52.71.242.164:1521:XE";
-        String username = "hr";
-        String password = "hr";
+        String connectionStr = ConfigurationReader.getProperty("database.url");
+        String username = ConfigurationReader.getProperty("database.username");
+        String password = ConfigurationReader.getProperty("database.password");
 
         try {
             conn = DriverManager.getConnection(connectionStr, username, password);
@@ -27,6 +27,45 @@ public class DB_Utility {
             System.out.println("CONNECTION HAS FAILED!");
             e.printStackTrace();
         }
+//         createConnection(connectionStr,username,password);
+
+    }
+
+    public static void createConnection(String env){
+        // add validation to avoid invalid input
+        // because we currently only have 2 env : test , dev
+        // or add some condition for invalid env
+        //  to directly get the information as database.url , database.username, database.password
+        // without any env
+        System.out.println("You are in "+env+" environment");
+        String connectionStr = ConfigurationReader.getProperty(env+".database.url");
+        String username = ConfigurationReader.getProperty(env+".database.username");
+        String password = ConfigurationReader.getProperty(env+".database.password");
+
+        createConnection(connectionStr,username,password);
+
+    }
+
+
+
+
+
+    /**
+     *  Overload createConnection method to accept url, username, password
+     *     * so we can provide those information for different database
+     * @param url  The connection String that used to connect to the database
+     * @param username the username of database
+     * @param password the password of database
+     */
+    public static void createConnection(String url, String username, String password){
+
+        try{
+            conn = DriverManager.getConnection(url,username,password) ;
+            System.out.println("CONNECTION SUCCESSFUL");
+        }catch(SQLException e){
+            System.out.println("ERROR WHILE CONNECTING WITH PARAMETERS");
+        }
+
 
     }
 
@@ -64,15 +103,59 @@ public class DB_Utility {
                 rs.close();
             }
             if(stmnt!=null){
-                rs.close();
+                stmnt.close();
             }
             if(conn!=null){
-                rs.close();
+                conn.close();
             }
         } catch (SQLException e) {
             e.printStackTrace();
         }
 
+    }
+
+
+    /**
+     * Get the row count of the resultSet
+     * @return the row number of the resultset given
+     */
+    public static int getRowCount(){
+
+        int rowCount = 0 ;
+
+        try {
+            rs.last(); // move to last row
+            rowCount = rs.getRow(); // get the row number and assign it to rowCount
+            // moving back the cursor to before first location just in case
+            rs.beforeFirst();
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.out.println("ERROR WHILE GETTING ROW COUNT");
+        }
+        return rowCount ;
+    }
+
+    /*
+     * a method to get the column count of the current ResultSet
+     *
+     *   getColumnCNT()
+     *
+     * */
+    public static int getColumnCNT() {
+
+        int colCount = 0;
+
+        try {
+            ResultSetMetaData rsmd = rs.getMetaData();
+            colCount = rsmd.getColumnCount();
+
+        } catch (SQLException e) {
+            System.out.println("ERROR WHILE COUNTING THE COLUMNS");
+            e.printStackTrace();
+        }
+
+        return colCount;
     }
 
 
@@ -131,48 +214,6 @@ public class DB_Utility {
     }
 
 
-    /**
-     * We want to store certian row data as a map
-     * give me number 3 row  --->> Map<String,String>   {region_id : 3 , region_name : Asia}
-     */
-    public static Map<String,String> getRowMap( int rowNum ){
-
-        Map<String,String> rowMap = new HashMap<>();
-        try{
-
-            rs.absolute(rowNum);
-
-            ResultSetMetaData rsmd = rs.getMetaData();
-            for (int colNum = 1; colNum <= getColumnCNT() ; colNum++) {
-                String colName = rsmd.getColumnName( colNum );
-                String colValue= rs.getString( colNum ) ;
-                rowMap.put(colName, colValue);
-            }
-            rs.beforeFirst();
-
-        }catch (SQLException e){
-            System.out.println("ERRROR AT ROW MAP FUNCTION");
-        }
-
-        return rowMap;
-    }
-
-    /**
-     *
-     * @return The entire resultset as List of Row Map
-     */
-    public static List<Map<String,String> > getAllDataAsListOfMap(){
-
-        List<Map<String,String> > rowMapList = new ArrayList<>();
-        for (int i = 1; i <= getRowCount(); i++) {
-            rowMapList.add(   getRowMap(i)    ) ;
-        }
-        return rowMapList ;
-
-    }
-
-
-
     /*
      * Getting single column cell value at certain row
      * row 2 column 3  -->> the data
@@ -225,48 +266,6 @@ public class DB_Utility {
         return result ;
     }
 
-    /**
-     * Get the row count of the resultSet
-     * @return the row number of the resultset given
-     */
-    public static int getRowCount(){
-
-        int rowCount = 0 ;
-
-        try {
-            rs.last(); // move to last row
-            rowCount = rs.getRow(); // get the row number and assign it to rowCount
-            // moving back the cursor to before first location just in case
-            rs.beforeFirst();
-
-        } catch (SQLException e) {
-            e.printStackTrace();
-            System.out.println("ERROR WHILE GETTING ROW COUNT");
-        }
-        return rowCount ;
-    }
-
-    /*
-     * a method to get the column count of the current ResultSet
-     *
-     *   getColumnCNT()
-     *
-     * */
-    public static int getColumnCNT() {
-
-        int colCount = 0;
-
-        try {
-            ResultSetMetaData rsmd = rs.getMetaData();
-            colCount = rsmd.getColumnCount();
-
-        } catch (SQLException e) {
-            System.out.println("ERROR WHILE COUNTING THE COLUMNS");
-            e.printStackTrace();
-        }
-
-        return colCount;
-    }
 
 
     // getting the entire row as List<String>
@@ -297,6 +296,53 @@ public class DB_Utility {
         return rowDataList;
     }
 
+
+    /**
+     * We want to store certian row data as a map
+     * give me number 3 row  --->> Map<String,String>   {region_id : 3 , region_name : Asia}
+     */
+    public static Map<String,String> getRowMap( int rowNum ){
+
+        Map<String,String> rowMap =  new LinkedHashMap<>() ; //new HashMap<>();
+        try{
+
+            rs.absolute(rowNum);
+
+            ResultSetMetaData rsmd = rs.getMetaData();
+            for (int colNum = 1; colNum <= getColumnCNT() ; colNum++) {
+                String colName = rsmd.getColumnName( colNum );
+                String colValue= rs.getString( colNum ) ;
+                rowMap.put(colName, colValue);
+            }
+            rs.beforeFirst();
+
+        }catch (SQLException e){
+            System.out.println("ERRROR AT ROW MAP FUNCTION");
+        }
+
+        return rowMap;
+    }
+
+    /**
+     *
+     * @return The entire resultset as List of Row Map
+     */
+    public static List<Map<String,String> > getAllDataAsListOfMap(){
+        // each row is represented as a map
+        // and we want to get List of each row data as map
+        // so the data type of my List is Map -->> since map has key and value data type
+        // it becomes List< Map<String,String> >
+
+        List< Map<String,String> > rowMapList = new ArrayList<>();
+        // we can get one rowMap using getRowMap(i) methods
+        // so we can iterate over each row and get Map object and put it into the List
+
+        for (int i = 1; i <= getRowCount(); i++) {
+            rowMapList.add(   getRowMap(i)    ) ;
+        }
+        return rowMapList ;
+
+    }
 
 
 
